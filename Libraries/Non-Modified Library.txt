@@ -1,0 +1,4 @@
+Tested Using 
+
+1. ArduinoJson 6.16.1 (https://github.com/bblanchon/ArduinoJson)
+2. PubSubClient 2.7 (https://github.com/knolleary/pubsubclient)
