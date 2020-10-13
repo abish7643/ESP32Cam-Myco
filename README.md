@@ -4,6 +4,8 @@
 - Hardware
   - AI Thinker ESP32 CAM
   - USB UART Programmer (CP2102 or FTDI)
+  - BME 280 Sensor
+  - SGP30 Sensor
 - Libraries
   - PubSubClient@2.7
   - ArduinoJson@6.15.1
@@ -19,8 +21,9 @@
   - Using Platform IO
   - Using Arduino IDE
 - Customizing The Credentials
-- Sensors with I2C Bus
-- Other Hardwares
+- NTP Server For Setting Intial Time
+- Peripheral Connections
+- Run Time & MQTT Publishing 
 - Expected Output
 - Subscribe to Topic Using Python
 
@@ -107,28 +110,28 @@ In the main.cpp file (If Arduino IDE, ESP32Cam_MQTT.ino),
   
 ## NTP Server For Setting Intial Time
 
-- Adding Specific NTP Server.
+Adding Specific NTP Server.
 
-   ```cpp
-   const char *ntpServer = "asia.pool.ntp.org"; // Asia Time
-   const long gmtOffset_sec = 270 * 60;         // India Offset (+4:30 hr)
-   const int daylightOffset_sec = 60 * 60; // Daylight Saving Time (+1:00 hr)
+```cpp
+const char *ntpServer = "asia.pool.ntp.org"; // Asia Time
+const long gmtOffset_sec = 270 * 60;         // India Offset (+4:30 hr)
+const int daylightOffset_sec = 60 * 60; // Daylight Saving Time (+1:00 hr)
 
-  // Africa — africa.pool.ntp.org
-  // Antarctica — antarctica.pool.ntp.org
-  // Asia — asia.pool.ntp.org
-  // Europe — europe.pool.ntp.org
-  // North America — north-america.pool.ntp.org
-  // Oceania — oceania.pool.ntp.org
-  // South America — south-america.pool.ntp.org
-   ```
-   If a person is from India, `asia.pool.ntp.org` is the NTP server. An offset of +5:30hr (330 Minutes) is required for India. This should be added in terms of seconds. Therefore `gmtOffset_sec` is made 270*60 seconds and `daylightOffset_sec` is made (1hr) 60*60 seconds (Daylight Saving Time).
+// Africa — africa.pool.ntp.org
+// Antarctica — antarctica.pool.ntp.org
+// Asia — asia.pool.ntp.org
+// Europe — europe.pool.ntp.org
+// North America — north-america.pool.ntp.org
+// Oceania — oceania.pool.ntp.org
+// South America — south-america.pool.ntp.org
+```
+If a person is from India, `asia.pool.ntp.org` is the NTP server. An offset of +5:30hr (330 Minutes) is required for India. This should be added in terms of seconds. Therefore `gmtOffset_sec` is made 270*60 seconds and `daylightOffset_sec` is made (1hr) 60*60 seconds (Daylight Saving Time).
 
-   Note : Time is only taken on the first loop, then it'll be used as a reference to the local time.
+Note : Time is only taken on the first loop, then it'll be used as a reference to the local time.
 
-   ```cpp
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-   ```
+```cpp
+ configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+```
 
 ## Peripheral Connections
    
@@ -178,8 +181,8 @@ In the main.cpp file (If Arduino IDE, ESP32Cam_MQTT.ino),
    `NOTE : Alititude, Pressure are published even though there's no conditional logic added for the values. Feel free to comment out the respective publishing if not required.`
 
    ```cpp
-   publishSensors(mqtt_publish_topic_pressure, String(pressure).c_str()); // Pressure
-   publishSensors(mqtt_publish_topic_altitude, String(altitude).c_str()); // Humidity
+      publishSensors(mqtt_publish_topic_pressure, String(pressure).c_str()); // Pressure
+      publishSensors(mqtt_publish_topic_altitude, String(altitude).c_str()); // Humidity
    ```
 
 3. ### Other Hardware Connections
@@ -207,8 +210,65 @@ In the main.cpp file (If Arduino IDE, ESP32Cam_MQTT.ino),
    publishSensors(mqtt_publish_topic_fanstate, "1");
    publishSensors(mqtt_publish_topic_dehumidifier, "1");
    ```
+4. ### SGP30 Calibration
 
+   SGP30 is calibrated using the baseline value obtained from the library. It is saved to SPIFFS if the value changes. This helps to `self calibrate`. Refer SGP30 Documentation for more info.
 
+   ```cpp
+   // Set Baseline Values to 'Self-Calibrate' SGP30
+   sgp.setIAQBaseline(eCO2_base, TVOC_base);
+
+   ```
+
+   For getting the baseline values, `getIAQBaseline` method is used. If the values new values are different from the previous baseline values, these is written to SPIFFS.
+
+   ```cpp
+      // Get New Baseline Values
+       uint16_t new_eCO2_base, new_TVOC_base;
+
+       if (!sgp.getIAQBaseline(&new_eCO2_base, &new_TVOC_base))
+       {
+         Serial.println("Failed to get baseline readings");
+         return;
+       }
+   ```
+
+   While the device starts, it looks for the `Config File` containing the baseline values. If it doesn't exist, the file is created.
+
+   ```cpp
+   if (SPIFFS.exists("/config.json"))
+       {
+         // Reads Config If The File Exists
+         readConfigFile();
+
+         ....
+
+         // Set Baseline Values to 'Self-Calibrate' SGP30
+         sgp.setIAQBaseline(eCO2_base, TVOC_base);
+       }
+       else
+       {
+         // Creates Config File If The File Doesn't Exist
+         Serial.println("Creating new config file");
+         writeConfigFile();
+       }
+   ```
+
+## Run Time & MQTT Publishing
+
+   Adjust the runtime for publishing sensor values, device states each and every 5 minute or modify 5 to anything you require. If a sensor value goes beyond the predefined limit the state of device and sensor values will be instantaneously publishing using MQTT.
+
+   ```cpp
+   int RunTime = 5 * 60; // 5 Minutes
+   ```
+
+   Set the predefined Trigger limits for conditional activation of devices.
+
+   ```cpp
+   // Trigger Limits
+   float HumidityLimit = 90.00; // Relative Humidity = 90%
+   int CO2ContentLimit = 900;   // CO2 Content Limit = 900PPM
+   ```
 
 ## Expected Output
 

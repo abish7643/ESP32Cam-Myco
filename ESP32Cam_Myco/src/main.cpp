@@ -389,24 +389,26 @@ void loop()
       Serial.println("Failed to get baseline readings");
       return;
     }
-
-    // Write to SPIFFS if Baseline Value Changed
-    if (eCO2_base != new_eCO2_base)
+    else
     {
-      eCO2_base = new_eCO2_base;
-      TVOC_base = new_TVOC_base;
-
-      Serial.println("Baseline Value Changed");
-      Serial.print("eCO2: 0x");
-      Serial.print(new_eCO2_base, HEX);
-      Serial.print(" & TVOC: 0x");
-      Serial.println(new_TVOC_base, HEX);
-
-      // Save Calibration Data to SPIFFS
-      if (SPIFFS.exists("/config.json"))
+      // Write to SPIFFS if Baseline Value Changed
+      if (eCO2_base != new_eCO2_base)
       {
-        Serial.println("Update Config File");
-        writeConfigFile();
+        eCO2_base = new_eCO2_base;
+        TVOC_base = new_TVOC_base;
+
+        Serial.println("Baseline Value Changed");
+        Serial.print("eCO2: 0x");
+        Serial.print(new_eCO2_base, HEX);
+        Serial.print(" & TVOC: 0x");
+        Serial.println(new_TVOC_base, HEX);
+
+        // Save Calibration Data to SPIFFS
+        if (SPIFFS.exists("/config.json"))
+        {
+          Serial.println("Update Config File");
+          writeConfigFile();
+        }
       }
     }
     // --------------------------------------
