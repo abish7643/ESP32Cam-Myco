@@ -252,6 +252,7 @@ void setup()
   setup_wifi();
 
   // Connect To NTP Server For Time & Date
+  Serial.println("---Configuring Time From NTP Server---");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   printLocalTime();
 
@@ -437,14 +438,8 @@ void loop()
 
     if (InitialLoop)
     {
-      if (!DeHumidifierState)
-      {
-        publishSensors(mqtt_publish_topic_dehumidifier, "0");
-      }
-      if (!FanState)
-      {
-        publishSensors(mqtt_publish_topic_fanstate, "0");
-      }
+      publishSensors(mqtt_publish_topic_dehumidifier, String(DeHumidifierState).c_str());
+      publishSensors(mqtt_publish_topic_fanstate, String(FanState).c_str());
     }
 
     // -------------Capture Picture-----------------
@@ -598,6 +593,9 @@ void reconnect()
       Serial.println("connected");
       // Subscribe Topic
       // client.subscribe(mqtt_subscribe_topic);
+
+      InitialLoop = true; // To Publish the States Instantly after Losing Connection
+      Serial.println("-------Sending States Instantly-------");
     }
     else
     {
@@ -616,6 +614,9 @@ void printLocalTime()
   if (!getLocalTime(&timeinfo))
   {
     Serial.println("Failed To Obtain Time");
+    // Try To Obtain Time From NTPServer Once Again
+    Serial.println("---Configuring Time From NTP Server---");
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     return;
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
